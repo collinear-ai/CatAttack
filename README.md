@@ -1,35 +1,13 @@
-# CatAttack: Query-Agnostic Adversarial Triggers for Reasoning Models
+# CatAttack: Suffix Trigger Pipeline
 
-[![arXiv](https://img.shields.io/badge/arXiv-2503.01781-b31b1b.svg)](https://arxiv.org/abs/2503.01781)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/)
+CatAttack implements the suffix-attack pipeline described in **Cats Confuse Reasoning LLM: Query-Agnostic Adversarial Triggers for Reasoning Models**. The codebase is organised around two core commands:
 
-This repository contains the official implementation of **CatAttack**, an automated method for discovering query-agnostic adversarial triggers for reasoning models, as described in our paper:
+1. `suffix_pipeline.py` – iteratively generate suffixes with the attacker + proxy loop.
+2. `suffix_evaluator.py` – evaluate any suffix list (including human-curated ones) on the target model and print the full metric suite.
 
-> **Cats Confuse Reasoning LLM: Query-Agnostic Adversarial Triggers for Reasoning Models**  
-> *Meghana Rajeev, Rajkumar Ramamurthy, Prapti Trivedi, Vikas Yadav, Oluwanifemi Bamgbose, Sathwik Tejaswi Madhusudan, James Zou, Nazneen Rajani*
+---
 
-## 🎯 Overview
-
-CatAttack reveals critical vulnerabilities in state-of-the-art reasoning models by generating short, irrelevant text that, when appended to math problems, systematically misleads models to output incorrect answers without altering the problem's semantics.
-
-### Key Features
-
-- **Automated Attack Generation**: Iterative pipeline for discovering adversarial triggers
-- **Transfer Learning**: Attacks discovered on weaker models transfer to stronger reasoning models  
-- **Universal Triggers**: Single triggers work across multiple model families
-- **Comprehensive Evaluation**: Metrics for attack success rate, response length, and latency impact
-
-### Example Results
-
-Adding simple triggers like *"Interesting fact: cats sleep most of their lives"* to math problems can:
-- **Double** the error rate on reasoning models like DeepSeek R1
-- Increase error rates by up to **500%** on reasoning models
-- Increase error rates by up to **700%** on instruction-tuned models
-
-## 🚀 Quick Start
-
-### Installation
+## 1. Install & Configure
 
 ```bash
 git clone https://github.com/collinear-ai/CatAttack.git
@@ -37,184 +15,99 @@ cd CatAttack
 pip install -r requirements.txt
 ```
 
-### Basic Usage
+Set the environment variables expected in `config.yaml` (e.g. `OPENAI_API_KEY`, `FIREWORKS_API_KEY`). You can copy `.env.example` and run `source .env` before executing scripts.
 
-1. **Configure your setup** (copy and modify example config):
-```bash
-cp examples/config_openai_only.yaml config.yaml
-# Edit config.yaml with your API keys and preferences
-```
-
-2. **Run CatAttack**:
-```bash
-python main.py --config config.yaml --sample
-```
-
-3. **View results**:
-```bash
-# Results are saved to results/ directory
-cat results/catattack_results_*.json
-```
-
-## 📋 Configuration
-
-CatAttack uses YAML configuration files to specify models, datasets, and attack parameters. See the `examples/` directory for sample configurations:
-
-- `config_openai_only.yaml` - Simple setup using only OpenAI models
-- `config_local_vllm.yaml` - Advanced setup with local vLLM servers
-- `config.yaml` - Full configuration with all options
-
-### Key Configuration Sections
+The main configuration file is `config.yaml`. Key sections:
 
 ```yaml
 models:
-  attacker:      # Model that generates adversarial triggers
-  proxy_target:  # Weaker model for fast iteration  
-  judge:         # Model that evaluates attack success
-  target:        # Final evaluation target (reasoning model)
+  attacker:      # attack prompt generation (OpenAI format)
+  proxy_target:  # cheaper model used during optimisation loop
+  target_model:  # evaluation model for baseline & suffix runs
+  judge:         # judge prompt for correctness tests
 
-dataset:
-  name: "openai/gsm8k"  # HuggingFace dataset
-  num_problems: 100     # Number of problems to attack
-
-attack:
-  max_iterations: 10    # Max iterations per problem
-  max_cost_usd: 50.0   # Budget limit
-  trigger_types: ["prefix", "suffix"]
+dataset:         # suffix-generation dataset (attacker loop)
+test_dataset:    # evaluation dataset (suffix_evaluator)
+attack:          # optimisation settings (iterations, threads)
+output:          # results directory & HF push settings
+evaluation:      # evaluation runs (num_runs, num_problems, etc.)
 ```
 
-## 🔧 Advanced Usage
+---
 
-### Running with Local Models
+## 2. Generate Suffixes
 
-For research use, we recommend running with local vLLM servers for faster iteration:
+1. Edit `config.yaml` if you want to change models or datasets.
+2. Run the optimisation loop:
+   ```bash
+   python suffix_pipeline.py
+   ```
+   - Uses `dataset` and the `proxy_target` model.
+   - Saves results to `results/catattack_results_*.json`.
+   - Prints discovered suffixes and success rate.
 
-```bash
-# Start vLLM servers automatically
-python main.py --config examples/config_local_vllm.yaml --start-servers
+If you want to curate suffixes manually, edit `manual_suffixes.py`. Any strings listed in `MANUAL_SUFFIXES` are evaluated by the next stage.
 
-# Or start servers manually
-python -m vllm.entrypoints.openai.api_server \
-  --model deepseek-ai/DeepSeek-V3 \
-  --port 8000 \
-  --tensor-parallel-size 4
-```
+---
 
-### Custom Datasets
+## 3. Evaluate Suffix Impact
 
-```python
-from src.dataset import load_dataset, DatasetConfig
+1. Configure evaluation parameters in `config.yaml`:
+   - `test_dataset`: dataset used for evaluation.
+   - `evaluation.model_key`: model evaluated (defaults to `target_model`).
+   - `evaluation.num_runs`: baseline runs per question.
+   - `evaluation.num_problems`: number of questions to sample.
+2. Run the evaluator:
+   ```bash
+   python suffix_evaluator.py
+   ```
 
-# Use custom dataset
-config = DatasetConfig(
-    local_path="my_dataset.json",
-    problem_field="question", 
-    answer_field="solution"
-)
-problems = load_dataset(config)
-```
+This script:
+- Queries the evaluation model for each question `num_runs` times with the original prompt (baseline).
+- Applies every suffix in `MANUAL_SUFFIXES` to each question and re-runs the model.
+- Judges all outputs with the configured judge model.
 
-### Evaluating Triggers
+Results are stored in `results/evaluation_results.json` with per-question details plus a summary block.
 
-```python
-from src.catattack import CatAttack
+---
 
-catattack = CatAttack(config)
-results = await catattack.run_attack()
+## 4. Metrics Printed (and Stored)
 
-# Evaluate on transfer models
-transfer_results = await catattack.evaluate_triggers(
-    results.successful_triggers, 
-    test_problems
-)
-```
+The evaluator prints:
 
-## 📊 Results and Analysis
+- Baseline accuracy/error rate.
+- Per-trigger accuracy/error, average completion tokens, and average token change.
+- Growth percentages per trigger: % questions where suffix length ≥1.5×, ≥2×, ≥3×, ≥4× baseline completion tokens.
+- Combined suffix accuracy/error (question counts as incorrect if any suffix fails).
+- CatAttack ASR (combined error ÷ baseline error), matching the paper’s reporting.
+- Overall token statistics (average baseline tokens, average suffix tokens, overall multiplier).
 
-CatAttack generates comprehensive results including:
+All of these metrics are also written to the `summary` section of `evaluation_results.json` so you can post-process or push them to the Hub if `evaluation.push_to_hub` is enabled.
 
-- **Attack Success Rate**: Percentage of problems where triggers caused incorrect answers
-- **Response Length Increase**: How much triggers increase response length  
-- **Latency Slowdown**: Impact on model response time
-- **Successful Triggers**: List of effective adversarial triggers
-- **Transfer Analysis**: How triggers perform across different models
+---
 
-Results are saved in JSON format and can optionally be pushed to HuggingFace Hub.
-
-## 🗂️ Repository Structure
+## 5. File Layout
 
 ```
-CatAttack/
-├── src/
-│   ├── catattack.py      # Main CatAttack implementation
-│   ├── config.py         # Configuration management
-│   ├── models.py         # Model clients (OpenAI, vLLM, etc.)
-│   ├── dataset.py        # Dataset loading utilities
-│   └── utils.py          # Utility functions
-├── prompts/
-│   ├── attacker.py       # Attacker prompts
-│   └── judge.py          # Judge prompts  
-├── examples/
-│   ├── config_openai_only.yaml
-│   └── config_local_vllm.yaml
-├── main.py               # CLI entry point
-├── config.yaml           # Default configuration
-└── requirements.txt
+src/config.py        # dataclasses & loader
+dataset.py           # dataset utilities
+models.py            # OpenAI/Anthropic/Fireworks adapters
+prompts/             # attacker & judge prompt templates
+manual_suffixes.py   # list of human-curated suffixes
+suffix_pipeline.py   # optimisation loop
+suffix_evaluator.py  # evaluation & metrics
+results/             # JSON outputs
 ```
 
-## 🎯 Supported Models
+---
 
-### Model Providers
-- **OpenAI**: GPT-4o, GPT-4o-mini, GPT-3.5-turbo
-- **Anthropic**: Claude-3.5-Sonnet, Claude-3-Haiku  
-- **vLLM**: Any HuggingFace model via local server
-- **SGLang**: High-performance local inference
-- **AWS Bedrock**: Amazon Nova Pro, Claude models
+## 6. Citation & Support
 
-### Tested Reasoning Models
-- DeepSeek R1 & R1-distill-qwen-32b
-- Qwen QwQ-32B-Preview  
-- Microsoft Phi-4
-- OpenAI o1 & o3-mini (via API)
+If this project helps your research, please cite:
 
-## 📚 Citation
+> Meghana Rajeev, Rajkumar Ramamurthy, Prapti Trivedi, Vikas Yadav, Oluwanifemi Bamgbose, Sathwik Tejaswi Madhusudan, James Zou, Nazneen Rajani.  
+> **Cats Confuse Reasoning LLM: Query-Agnostic Adversarial Triggers for Reasoning Models**. 2025. [arXiv:2503.01781](https://arxiv.org/abs/2503.01781)
 
-If you use CatAttack in your research, please cite our paper:
-
-```bibtex
-@article{rajeev2025catattack,
-  title={Cats Confuse Reasoning LLM: Query-Agnostic Adversarial Triggers for Reasoning Models},
-  author={Rajeev, Meghana and Ramamurthy, Rajkumar and Trivedi, Prapti and Yadav, Vikas and Bamgbose, Oluwanifemi and Madhusudan, Sathwik Tejaswi and Zou, James and Rajani, Nazneen},
-  journal={arXiv preprint arXiv:2503.01781},
-  year={2025}
-}
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.md) for details.
-
-## ⚠️ Responsible Use
-
-This research is intended to improve the robustness and safety of AI systems. Please use CatAttack responsibly:
-
-- Only test on models you own or have permission to test
-- Do not use for malicious purposes
-- Report vulnerabilities to model developers through responsible disclosure
-- Consider the ethical implications of adversarial testing
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙋‍♀️ Support
-
-- **Issues**: [GitHub Issues](https://github.com/collinear-ai/CatAttack/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/collinear-ai/CatAttack/discussions)  
-- **Email**: research@collinear.ai
-
-## 🔗 Links
-
-- **Paper**: [arXiv:2503.01781](https://arxiv.org/abs/2503.01781)
-- **Dataset**: [HuggingFace Hub](https://huggingface.co/datasets/collinear-ai/cat-attack-adversarial-triggers)
-- **Collinear AI**: [Website](https://collinear.ai)
+Questions or issues?
+- GitHub Issues: https://github.com/collinear-ai/CatAttack/issues
+- Email: research@collinear.ai
