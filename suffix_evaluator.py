@@ -26,9 +26,11 @@ class EvaluationResult:
     ground_truth: str
     baseline_responses: List[str]
     baseline_correctness: List[bool]
+    baseline_completion_tokens: List[int]
     suffix_questions: List[str]
     suffix_correctness: List[bool]
     suffix_responses: List[str]
+    suffix_completion_tokens: List[int]
 
 def get_model_client(catattack: CatAttack, model_key: str):
     if model_key == "attacker":
@@ -65,10 +67,12 @@ async def evaluate_suffixes(config: CatAttackConfig) -> Dict:
 
         baseline_responses: List[str] = []
         baseline_correctness: List[bool] = []
+        baseline_tokens: List[int] = []
 
         for _ in range(config.evaluation.num_runs):
             response = await catattack.proxy_client.generate(question)
             baseline_responses.append(response.content)
+            baseline_tokens.append(response.completion_tokens)
 
             is_correct = await run_judge(catattack, question, ground_truth, response.content)
             baseline_correctness.append(is_correct)
@@ -80,6 +84,7 @@ async def evaluate_suffixes(config: CatAttackConfig) -> Dict:
         suffix_questions: List[str] = []
         suffix_correctness: List[bool] = []
         suffix_responses: List[str] = []
+        suffix_tokens: List[int] = []
 
         for suffix in MANUAL_SUFFIXES:
             modified_question = f"{question} {suffix}".strip()
@@ -87,6 +92,7 @@ async def evaluate_suffixes(config: CatAttackConfig) -> Dict:
 
             response = await model_client.generate(modified_question)
             suffix_responses.append(response.content)
+            suffix_tokens.append(response.completion_tokens)
             is_correct = await run_judge(catattack, modified_question, ground_truth, response.content)
             suffix_correctness.append(is_correct)
 
@@ -97,9 +103,11 @@ async def evaluate_suffixes(config: CatAttackConfig) -> Dict:
                 ground_truth=ground_truth,
                 baseline_responses=baseline_responses,
                 baseline_correctness=baseline_correctness,
+                baseline_completion_tokens=baseline_tokens,
                 suffix_questions=suffix_questions,
                 suffix_correctness=suffix_correctness,
                 suffix_responses=suffix_responses,
+                suffix_completion_tokens=suffix_tokens,
             )
         )
 
@@ -123,9 +131,13 @@ async def evaluate_suffixes(config: CatAttackConfig) -> Dict:
                 "ground_truth": r.ground_truth,
                 "baseline_responses": r.baseline_responses,
                 "baseline_correctness": r.baseline_correctness,
+                "baseline_completion_tokens": r.baseline_completion_tokens,
+                "avg_baseline_completion_tokens": (sum(r.baseline_completion_tokens) / len(r.baseline_completion_tokens)) if r.baseline_completion_tokens else 0.0,
                 "suffix_questions": r.suffix_questions,
-                "suffix_correctness": r.suffix_correctness,
                 "suffix_responses": r.suffix_responses,
+                "suffix_correctness": r.suffix_correctness,
+                "suffix_completion_tokens": r.suffix_completion_tokens,
+                "avg_suffix_completion_tokens": (sum(r.suffix_completion_tokens) / len(r.suffix_completion_tokens)) if r.suffix_completion_tokens else 0.0,
             }
             for r in evaluation_results
         ],
