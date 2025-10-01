@@ -195,11 +195,11 @@ class CatAttack:
         # Test baseline (original question)
         baseline_response_proxy = await self.proxy_client.generate(original_question)
         baseline_correct_proxy = await self.judge_answer(original_question, ground_truth, baseline_response_proxy.content)
-        result.proxy_completion_tokens.append(baseline_response_proxy.tokens_used)
+        result.proxy_completion_tokens.append(baseline_response_proxy.completion_tokens)
 
         target_baseline_response = await self.target_model_client.generate(original_question)
         target_baseline_correct = await self.judge_answer(original_question, ground_truth, target_baseline_response.content)
-        result.target_completion_tokens.append(target_baseline_response.tokens_used)
+        result.target_completion_tokens.append(target_baseline_response.completion_tokens)
 
         if not baseline_correct_proxy:
             result.attack_successful = not target_baseline_correct
@@ -226,11 +226,11 @@ class CatAttack:
             # Test on proxy target
             proxy_response = await self.proxy_client.generate(adversarial_question)
             proxy_is_correct = await self.judge_answer(adversarial_question, ground_truth, proxy_response.content)
-            result.proxy_completion_tokens.append(proxy_response.tokens_used)
+            result.proxy_completion_tokens.append(proxy_response.completion_tokens)
 
             target_response = await self.target_model_client.generate(adversarial_question)
             target_is_correct = await self.judge_answer(adversarial_question, ground_truth, target_response.content)
-            result.target_completion_tokens.append(target_response.tokens_used)
+            result.target_completion_tokens.append(target_response.completion_tokens)
 
             result.iterations = iteration + 1
             result.adversarial_question = adversarial_question
@@ -244,10 +244,10 @@ class CatAttack:
                 "question": adversarial_question,
                 "proxy_response": proxy_response.content,
                 "proxy_correct": proxy_is_correct,
-                "proxy_tokens": proxy_response.tokens_used,
+                "proxy_tokens": proxy_response.completion_tokens,
                 "target_response": target_response.content,
                 "target_correct": target_is_correct,
-                "target_tokens": target_response.tokens_used,
+                "target_tokens": target_response.completion_tokens,
                 "judge_feedback": "Correct" if target_is_correct else "Incorrect",
                 "total_cost": result.total_cost,
                 "total_latency": result.total_latency,

@@ -19,6 +19,8 @@ from .config import ModelConfig
 class ModelResponse:
     """Response from a model"""
     content: str
+    completion_tokens: int = 0
+    prompt_tokens: int = 0
     tokens_used: int = 0
     latency: float = 0.0
     cost: float = 0.0
@@ -88,6 +90,8 @@ class OpenAIClient(BaseModelClient):
             
             return ModelResponse(
                 content=content,
+                completion_tokens=output_tokens,
+                prompt_tokens=input_tokens,
                 tokens_used=total_tokens,
                 latency=latency,
                 cost=cost,
@@ -148,6 +152,8 @@ class AnthropicClient(BaseModelClient):
             
             return ModelResponse(
                 content=content,
+                completion_tokens=output_tokens,
+                prompt_tokens=input_tokens,
                 tokens_used=total_tokens,
                 latency=latency,
                 cost=cost,
@@ -207,10 +213,19 @@ class VLLMClient(BaseModelClient):
             content = data["choices"][0]["message"]["content"]
             
             # vLLM might not return usage info, estimate tokens
-            tokens_used = len(prompt.split()) + len(content.split())  # Rough estimate
-            
+            if "usage" in data:
+                completion_tokens = data["usage"].get("completion_tokens", 0)
+                prompt_tokens = data["usage"].get("prompt_tokens", 0)
+                tokens_used = data["usage"].get("total_tokens", completion_tokens + prompt_tokens)
+            else:
+                completion_tokens = len(content.split())
+                prompt_tokens = len(prompt.split())
+                tokens_used = completion_tokens + prompt_tokens
+
             return ModelResponse(
                 content=content,
+                completion_tokens=completion_tokens,
+                prompt_tokens=prompt_tokens,
                 tokens_used=tokens_used,
                 latency=latency,
                 cost=0.0,  # Local inference, no cost
@@ -261,10 +276,19 @@ class SGLangClient(BaseModelClient):
             content = data["choices"][0]["message"]["content"]
             
             # SGLang might not return usage info, estimate tokens
-            tokens_used = len(prompt.split()) + len(content.split())  # Rough estimate
-            
+            if "usage" in data:
+                completion_tokens = data["usage"].get("completion_tokens", 0)
+                prompt_tokens = data["usage"].get("prompt_tokens", 0)
+                tokens_used = data["usage"].get("total_tokens", completion_tokens + prompt_tokens)
+            else:
+                completion_tokens = len(content.split())
+                prompt_tokens = len(prompt.split())
+                tokens_used = completion_tokens + prompt_tokens
+
             return ModelResponse(
                 content=content,
+                completion_tokens=completion_tokens,
+                prompt_tokens=prompt_tokens,
                 tokens_used=tokens_used,
                 latency=latency,
                 cost=0.0,  # Local inference, no cost

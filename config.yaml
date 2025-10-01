@@ -76,7 +76,7 @@ output:
 
 # Evaluation configuration
 evaluation:
-  model_key: "target_model"
+  model_key: "target_model"  # model used for both baseline and suffix evaluation
   num_runs: 6
   num_problems: 10
   push_to_hub: false
