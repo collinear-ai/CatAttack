@@ -1,4 +1,4 @@
-"""Human-reviewed adversarial prefixes or suffixes."""
+"""Human-reviewed adversarial suffixes."""
 
 MANUAL_SUFFIXES = [
     # Example entry:
