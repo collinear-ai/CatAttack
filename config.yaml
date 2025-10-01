@@ -1,0 +1,58 @@
+# CatAttack Configuration
+# Based on the paper: "Cats Confuse Reasoning LLM: Query-Agnostic Adversarial Triggers for Reasoning Models"
+
+# Model configurations for the three components of CatAttack
+models:
+  # Attacker model - generates adversarial suffixes
+  attacker:
+    provider: "openai"
+    model: "gpt-4o"
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    max_tokens: 2048
+    temperature: 0.7
+    
+  # Proxy target model - weaker model used for iterative optimization
+  # Using Fireworks AI with OpenAI-compatible API
+  proxy_target:
+    provider: "openai"  # Use "openai" for any OpenAI-compatible API
+    model: "accounts/fireworks/models/deepseek-v3"
+    base_url: "https://api.fireworks.ai/inference/v1"
+    api_key_env: "FIREWORKS_API_KEY"
+    max_tokens: 4096
+    temperature: 0.0
+    
+  # Judge model - evaluates if attack was successful
+  judge:
+    provider: "openai"
+    model: "gpt-4o"
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    max_tokens: 1024
+    temperature: 0.0
+
+# Dataset configuration
+dataset:
+  name: "AI-MO/NuminaMath-CoT"
+  split: "test"
+  num_problems: 2
+  problem_field: "question"
+  answer_field: "answer"
+
+# Attack configuration
+attack:
+  max_iterations: 10
+  num_threads: 2
+
+# Logging and output
+logging:
+  level: "INFO"
+  log_file: "catattack.log"
+  
+output:
+  results_dir: "results"
+  save_triggers: true
+  push_to_hub: false
+  hub_dataset_name: "collinear-ai/catattack-modified-problems"
+  hub_private: true
+  include_failed_attacks: true

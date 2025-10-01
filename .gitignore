@@ -1,0 +1,23 @@
+# Folders
+results/
+
+# File types
+*.log
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node (if any)
+node_modules/
+
+# Secrets (never commit!)
+.env
+*.key
+*.pem

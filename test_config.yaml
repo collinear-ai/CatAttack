@@ -1,0 +1,48 @@
+# CatAttack Test Configuration (No API keys needed for testing structure)
+# This config uses mock responses for testing
+
+models:
+  attacker:
+    provider: "openai"
+    model: "gpt-4o"
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    max_tokens: 2048
+    temperature: 0.7
+    
+  proxy_target:
+    provider: "openai"  # Change to openai for testing with same credentials
+    model: "gpt-3.5-turbo"
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    max_tokens: 4096
+    temperature: 0.0
+    
+  judge:
+    provider: "openai"
+    model: "gpt-4o-mini"
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    max_tokens: 1024
+    temperature: 0.0
+
+dataset:
+  name: "openai/gsm8k"
+  split: "test"
+  num_problems: 2
+  problem_field: "question"
+  answer_field: "answer"
+
+attack:
+  max_iterations: 3
+
+logging:
+  level: "INFO"
+  log_file: "catattack.log"
+  
+output:
+  results_dir: "results"
+  save_triggers: true
+  push_to_hub: false
+  hub_dataset_name: "collinear-ai/catattack-modified-problems"
+  hub_private: true
