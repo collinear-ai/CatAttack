@@ -10,11 +10,11 @@ models:
     max_tokens: 2048
     temperature: 0.7
     
-  proxy_target:
-    provider: "openai"  # Change to openai for testing with same credentials
-    model: "gpt-3.5-turbo"
-    base_url: "https://api.openai.com/v1"
-    api_key_env: "OPENAI_API_KEY"
+  target_model:
+    provider: "openai"
+    model: "accounts/fireworks/models/deepseek-v3"
+    base_url: "https://api.fireworks.ai/inference/v1"
+    api_key_env: "FIREWORKS_API_KEY"
     max_tokens: 4096
     temperature: 0.0
     

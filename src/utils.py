@@ -218,11 +218,9 @@ class MetricsCalculator:
         
         for result in results:
             original_len = len(result.get("original_question", "").split())
-            adversarial_len = len(result.get("proxy_response", "").split())
-            
+            target_len = len(result.get("target_model_response", "").split())
             if original_len > 0:
-                increase = (adversarial_len - original_len) / original_len
-                length_increases.append(increase)
+                length_increases.append((target_len - original_len) / original_len)
         
         if not length_increases:
             return {"avg_increase": 0.0, "max_increase": 0.0, "pct_longer_1_5x": 0.0}
@@ -387,8 +385,14 @@ def save_results_to_hub(results: Dict[str, Any], dataset_name: str, private: boo
                 "original_question": result["original_question"],
                 "adversarial_question": result["adversarial_question"],
                 "ground_truth": result["ground_truth"],
-                "proxy_response": result["proxy_response"],
-                "target_response": result.get("target_response", ""),
+                "proxy_response": result.get("proxy_response"),
+                "proxy_correct": result.get("proxy_correct"),
+                "target_model_response": result.get("target_model_response"),
+                "target_correct": result.get("target_correct"),
+                "proxy_completion_tokens": result.get("proxy_completion_tokens", []),
+                "target_completion_tokens": result.get("target_completion_tokens", []),
+                "avg_proxy_completion_tokens": sum(result.get("proxy_completion_tokens", [])) / max(len(result.get("proxy_completion_tokens", [])), 1),
+                "avg_target_completion_tokens": sum(result.get("target_completion_tokens", [])) / max(len(result.get("target_completion_tokens", [])), 1),
                 "attack_successful": result["attack_successful"],
                 "iterations": result["iterations"],
                 "trigger": result.get("extracted_trigger", ""),

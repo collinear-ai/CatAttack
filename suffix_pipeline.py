@@ -31,7 +31,8 @@ def main():
     problems = create_sample_dataset(config.dataset.num_problems)
 
     print(f"Loaded {len(problems)} sample problems")
-    print(f"Using SGLang proxy target: {config.models['proxy_target'].model}")
+    print(f"Using proxy target model: {config.models['proxy_target'].model}")
+    print(f"Evaluating on target model: {config.models['target_model'].model}")
     print(f"Max iterations per problem: {config.attack.max_iterations}")
     print()
 

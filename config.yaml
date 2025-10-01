@@ -22,6 +22,15 @@ models:
     max_tokens: 4096
     temperature: 0.0
     
+  # Target model - evaluation model the suffixes are transferred to
+  target_model:
+    provider: "openai"
+    model: "gpt-4o"
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    max_tokens: 2048
+    temperature: 0.0
+
   # Judge model - evaluates if attack was successful
   judge:
     provider: "openai"
@@ -36,6 +45,14 @@ dataset:
   name: "AI-MO/NuminaMath-CoT"
   split: "test"
   num_problems: 2
+  problem_field: "question"
+  answer_field: "answer"
+
+# Test dataset configuration (for baseline evaluations)
+test_dataset:
+  name: "collinear-ai/TEMP_catattack_codebase"
+  split: "train"
+  num_problems: 5
   problem_field: "question"
   answer_field: "answer"
 
@@ -56,3 +73,13 @@ output:
   hub_dataset_name: "collinear-ai/catattack-modified-problems"
   hub_private: true
   include_failed_attacks: true
+
+# Evaluation configuration
+evaluation:
+  model_key: "target_model"
+  num_runs: 6
+  num_problems: 10
+  push_to_hub: false
+  hub_dataset_name: "collinear-ai/catattack-evaluation"
+  hub_private: true
+  results_file: "evaluation_results.json"

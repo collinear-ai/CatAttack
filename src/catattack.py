@@ -39,7 +39,7 @@ class AttackResult:
     original_question: str
     adversarial_question: str
     ground_truth: str
-    proxy_response: str
+    target_model_response: str
     target_response: Optional[str] = None
     attack_successful: bool = False
     iterations: int = 0
@@ -48,6 +48,9 @@ class AttackResult:
     trigger_type: str = "suffix"
     extracted_trigger: str = ""
     attempts: List[Dict[str, Any]] = field(default_factory=list)
+    proxy_response: Optional[str] = None
+    proxy_completion_tokens: List[int] = field(default_factory=list)
+    target_completion_tokens: List[int] = field(default_factory=list)
 
 
 @dataclass
@@ -82,6 +85,7 @@ class CatAttack:
 
         self.attacker_client = self.model_manager.get_client(config.get_model_config("attacker"))
         self.proxy_client = self.model_manager.get_client(config.get_model_config("proxy_target"))
+        self.target_model_client = self.model_manager.get_client(config.get_model_config("target_model"))
         self.judge_client = self.model_manager.get_client(config.get_model_config("judge"))
 
         if "target" in config.models:
@@ -184,17 +188,23 @@ class CatAttack:
             original_question=original_question,
             adversarial_question=original_question,
             ground_truth=ground_truth,
+            target_model_response="",
             proxy_response="",
         )
         
         # Test baseline (original question)
-        baseline_response = await self.proxy_client.generate(original_question)
-        baseline_correct = await self.judge_answer(original_question, ground_truth, baseline_response.content)
-        
-        if not baseline_correct:
-            # Model already gets it wrong, no attack needed
-            result.attack_successful = True
-            result.proxy_response = baseline_response.content
+        baseline_response_proxy = await self.proxy_client.generate(original_question)
+        baseline_correct_proxy = await self.judge_answer(original_question, ground_truth, baseline_response_proxy.content)
+        result.proxy_completion_tokens.append(baseline_response_proxy.tokens_used)
+
+        target_baseline_response = await self.target_model_client.generate(original_question)
+        target_baseline_correct = await self.judge_answer(original_question, ground_truth, target_baseline_response.content)
+        result.target_completion_tokens.append(target_baseline_response.tokens_used)
+
+        if not baseline_correct_proxy:
+            result.attack_successful = not target_baseline_correct
+            result.target_model_response = target_baseline_response.content
+            result.proxy_response = baseline_response_proxy.content
             return result
         
         # Iterative attack
@@ -215,41 +225,51 @@ class CatAttack:
             
             # Test on proxy target
             proxy_response = await self.proxy_client.generate(adversarial_question)
-            is_correct = await self.judge_answer(adversarial_question, ground_truth, proxy_response.content)
-            
-            # Update result
+            proxy_is_correct = await self.judge_answer(adversarial_question, ground_truth, proxy_response.content)
+            result.proxy_completion_tokens.append(proxy_response.tokens_used)
+
+            target_response = await self.target_model_client.generate(adversarial_question)
+            target_is_correct = await self.judge_answer(adversarial_question, ground_truth, target_response.content)
+            result.target_completion_tokens.append(target_response.tokens_used)
+
             result.iterations = iteration + 1
             result.adversarial_question = adversarial_question
             result.proxy_response = proxy_response.content
-            result.total_cost += proxy_response.cost
-            result.total_latency += proxy_response.latency
-            
+            result.target_model_response = target_response.content
+            result.total_cost += proxy_response.cost + target_response.cost
+            result.total_latency += proxy_response.latency + target_response.latency
+
             attempt_record = {
                 "iteration": iteration + 1,
                 "question": adversarial_question,
-                "response": proxy_response.content,
-                "correct": is_correct,
-                "judge_feedback": "Correct" if is_correct else "Incorrect",
+                "proxy_response": proxy_response.content,
+                "proxy_correct": proxy_is_correct,
+                "proxy_tokens": proxy_response.tokens_used,
+                "target_response": target_response.content,
+                "target_correct": target_is_correct,
+                "target_tokens": target_response.tokens_used,
+                "judge_feedback": "Correct" if target_is_correct else "Incorrect",
                 "total_cost": result.total_cost,
                 "total_latency": result.total_latency,
             }
             result.attempts.append(attempt_record)
-            
-            if not is_correct:
-                # Attack successful!
+
+            if not target_is_correct:
                 result.attack_successful = True
                 result.extracted_trigger = self.extract_trigger(original_question, adversarial_question)
-                self.logger.debug(f"Attack successful after {iteration + 1} iterations")
                 break
-            
-            current_question = adversarial_question
+
+            if not proxy_is_correct:
+                current_question = adversarial_question
+            else:
+                break
         
         # Test on target model if available and attack was successful
         if result.attack_successful and self.target_client:
-            target_response = await self.target_client.generate(result.adversarial_question)
-            result.target_response = target_response.content
-            result.total_cost += target_response.cost
-            result.total_latency += target_response.latency
+            final_target_response = await self.target_client.generate(result.adversarial_question)
+            result.target_response = final_target_response.content
+            result.total_cost += final_target_response.cost
+            result.total_latency += final_target_response.latency
         
         return result
     
@@ -423,7 +443,7 @@ class CatAttack:
                     "modified_question": result.adversarial_question,
                     "ground_truth": result.ground_truth,
                     "extracted_trigger": result.extracted_trigger,
-                    "proxy_model_response": result.proxy_response,
+                    "target_model_response": result.target_model_response,
                     "target_model_response": result.target_response if result.target_response else "",
                     "iterations": result.iterations,
                     "total_cost": result.total_cost,

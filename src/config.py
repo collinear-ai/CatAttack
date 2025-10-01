@@ -11,7 +11,7 @@ from pathlib import Path
 
 @dataclass
 class ModelConfig:
-    """Configuration for a model (attacker, proxy_target, judge, or target)"""
+    """Configuration for a model (attacker, proxy_target, target_model, judge, or target)"""
     provider: str  # openai, anthropic, vllm, sglang, bedrock
     model: str
     base_url: Optional[str] = None
@@ -37,6 +37,16 @@ class DatasetConfig:
     num_problems: int = 100
     problem_field: str = "question"
     answer_field: str = "answer"
+
+    def clone_with_overrides(self, **overrides) -> "DatasetConfig":
+        data = self.__dict__.copy()
+        data.update(overrides)
+        return DatasetConfig(**data)
+
+
+@dataclass
+class TestDatasetConfig(DatasetConfig):
+    pass
 
 
 @dataclass
@@ -65,13 +75,27 @@ class OutputConfig:
 
 
 @dataclass
+class EvaluationConfig:
+    """Configuration for evaluation of suffixes"""
+    model_key: str = "target_model"
+    num_runs: int = 3
+    num_problems: Optional[int] = None
+    push_to_hub: bool = False
+    hub_dataset_name: Optional[str] = None
+    hub_private: bool = True
+    results_file: str = "evaluation_results.json"
+
+
+@dataclass
 class CatAttackConfig:
     """Main configuration class for CatAttack"""
     models: Dict[str, ModelConfig]
     dataset: DatasetConfig
+    test_dataset: TestDatasetConfig
     attack: AttackConfig
     logging: LoggingConfig
     output: OutputConfig
+    evaluation: EvaluationConfig
     
     @classmethod
     def from_yaml(cls, config_path: str) -> 'CatAttackConfig':
@@ -90,17 +114,23 @@ class CatAttackConfig:
             models[model_name] = ModelConfig(**model_config)
         
         # Parse other sections
-        dataset = DatasetConfig(**config_dict.get('dataset', {}))
+        dataset_dict = config_dict.get('dataset', {})
+        dataset = DatasetConfig(**dataset_dict)
+
+        test_dataset = TestDatasetConfig(**config_dict.get('test_dataset', {})) if 'test_dataset' in config_dict else TestDatasetConfig(**dataset_dict)
         attack = AttackConfig(**config_dict.get('attack', {}))
         logging = LoggingConfig(**config_dict.get('logging', {}))
         output = OutputConfig(**config_dict.get('output', {}))
+        evaluation = EvaluationConfig(**config_dict.get('evaluation', {}))
         
         return cls(
             models=models,
             dataset=dataset,
+            test_dataset=test_dataset,
             attack=attack,
             logging=logging,
-            output=output
+            output=output,
+            evaluation=evaluation
         )
     
     def get_model_config(self, model_type: str) -> ModelConfig:
@@ -111,7 +141,7 @@ class CatAttackConfig:
     
     def validate(self) -> None:
         """Validate the configuration"""
-        required_models = ['attacker', 'proxy_target', 'judge']
+        required_models = ['attacker', 'target_model', 'judge']
         for model_type in required_models:
             if model_type not in self.models:
                 raise ValueError(f"Required model '{model_type}' not found in configuration")
@@ -119,9 +149,20 @@ class CatAttackConfig:
         # Validate dataset configuration
         if not self.dataset.name and not self.dataset.local_path:
             raise ValueError("Either dataset.name or dataset.local_path must be specified")
+
+        if not self.test_dataset.name and not self.test_dataset.local_path:
+            raise ValueError("test_dataset must specify either name or local_path")
         
-        # Create output directory if it doesn't exist
+        # Ensure results directory exists
         Path(self.output.results_dir).mkdir(parents=True, exist_ok=True)
+
+        baseline_dataset_config = self.test_dataset or self.dataset
+        if baseline_dataset_config.name is None and baseline_dataset_config.local_path is None:
+            raise ValueError("Baseline test dataset requires either name or local_path")
+
+        # If evaluation push is requested ensure dataset name is provided
+        if self.evaluation.push_to_hub and not self.evaluation.hub_dataset_name:
+            raise ValueError("evaluation.hub_dataset_name must be provided when evaluation.push_to_hub is True")
 
 
 def load_config(config_path: str = "config.yaml") -> CatAttackConfig:
