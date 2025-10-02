@@ -1,6 +1,8 @@
 # CatAttack: Suffix Trigger Pipeline
 
-CatAttack implements the suffix-attack pipeline described in **Cats Confuse Reasoning LLM: Query-Agnostic Adversarial Triggers for Reasoning Models**. The codebase is organised around two core commands:
+[![arXiv](https://img.shields.io/badge/arXiv-2503.01781-b31b1b.svg)](https://arxiv.org/abs/2503.01781)
+
+CatAttack implements the suffix-attack pipeline described in **Cats Confuse Reasoning LLM: Query-Agnostic Adversarial Triggers for Reasoning Models** ([arXiv:2503.01781](https://arxiv.org/abs/2503.01781)). The codebase is organised around two core commands:
 
 1. `suffix_pipeline.py` – iteratively generate suffixes with the attacker + proxy loop.
 2. `suffix_evaluator.py` – evaluate any suffix list (including human-curated ones) on the target model and print the full metric suite.
@@ -26,6 +28,7 @@ models:
   target_model:  # Evaluation model (baseline & suffix runs)
   judge:         # Judge used for correctness checking
 
+# Use any dataset with question/answer fields for suffix generation
 dataset:
   name: "AI-MO/NuminaMath-CoT"
   split: "test"
