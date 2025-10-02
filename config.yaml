@@ -50,7 +50,7 @@ dataset:
 
 # Test dataset configuration (for baseline evaluations)
 test_dataset:
-  name: "collinear-ai/TEMP_catattack_codebase"
+  name: "{{test_dataset_name}}"
   split: "train"
   num_problems: 5
   problem_field: "question"
@@ -70,7 +70,7 @@ output:
   results_dir: "results"
   save_triggers: true
   push_to_hub: false
-  hub_dataset_name: "collinear-ai/catattack-modified-problems"
+  hub_dataset_name: "{{modified_problems_hub_dataset}}"
   hub_private: true
   include_failed_attacks: true
 
@@ -80,6 +80,6 @@ evaluation:
   num_runs: 6
   num_problems: 10
   push_to_hub: false
-  hub_dataset_name: "collinear-ai/catattack-evaluation"
+  hub_dataset_name: "{{evaluation_hub_dataset}}"
   hub_private: true
   results_file: "evaluation_results.json"
