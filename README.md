@@ -82,4 +82,6 @@ If you want to curate suffixes manually, edit `manual_suffixes.py`. Any strings 
    Before running, ensure `evaluation.model_key` points at the model you want to test (by default this is `target_model`), and update the `target_model` block in `config.yaml` if you want to evaluate a different provider/model.
 
 This script:
-- Queries the evaluation model for each question `
+- Queries the evaluation model for each question `num_runs` times with the original prompt (baseline).
+- Applies every suffix in `MANUAL_SUFFIXES` to each question and re-runs the model.
+- Judges all outputs with the configured judge model.
