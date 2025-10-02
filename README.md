@@ -34,6 +34,7 @@ dataset:
   split: "test"
   num_problems: 2
 
+# This evaluation dataset is used when running suffix_evaluator.py
 test_dataset:
   name: "collinear-ai/TEMP_catattack_codebase"
   split: "train"
@@ -78,53 +79,7 @@ If you want to curate suffixes manually, edit `manual_suffixes.py`. Any strings 
    ```bash
    python suffix_evaluator.py
    ```
+   Before running, ensure `evaluation.model_key` points at the model you want to test (by default this is `target_model`), and update the `target_model` block in `config.yaml` if you want to evaluate a different provider/model.
 
 This script:
-- Queries the evaluation model for each question `num_runs` times with the original prompt (baseline).
-- Applies every suffix in `MANUAL_SUFFIXES` to each question and re-runs the model.
-- Judges all outputs with the configured judge model.
-
-Results are stored in `results/evaluation_results.json` with per-question details plus a summary block.
-
----
-
-## 4. Metrics Printed (and Stored)
-
-The evaluator prints:
-
-- Baseline accuracy/error rate.
-- Per-trigger accuracy/error, average completion tokens, and average token change.
-- Growth percentages per trigger: % questions where suffix length ≥1.5×, ≥2×, ≥3×, ≥4× baseline completion tokens.
-- Combined suffix accuracy/error (question counts as incorrect if any suffix fails).
-- CatAttack ASR (combined error ÷ baseline error), matching the paper’s reporting.
-- Overall token statistics (average baseline tokens, average suffix tokens, overall multiplier).
-
-All of these metrics are also written to the `summary` section of `evaluation_results.json` so you can post-process or push them to the Hub if `evaluation.push_to_hub` is enabled.
-
----
-
-## 5. File Layout
-
-```
-src/config.py        # dataclasses & loader
-dataset.py           # dataset utilities
-models.py            # OpenAI/Anthropic/Fireworks adapters
-prompts/             # attacker & judge prompt templates
-manual_suffixes.py   # list of human-curated suffixes
-suffix_pipeline.py   # optimisation loop
-suffix_evaluator.py  # evaluation & metrics
-results/             # JSON outputs
-```
-
----
-
-## 6. Citation & Support
-
-If this project helps your research, please cite:
-
-> Meghana Rajeev, Rajkumar Ramamurthy, Prapti Trivedi, Vikas Yadav, Oluwanifemi Bamgbose, Sathwik Tejaswi Madhusudan, James Zou, Nazneen Rajani.  
-> **Cats Confuse Reasoning LLM: Query-Agnostic Adversarial Triggers for Reasoning Models**. 2025. [arXiv:2503.01781](https://arxiv.org/abs/2503.01781)
-
-Questions or issues?
-- GitHub Issues: https://github.com/collinear-ai/CatAttack/issues
-- Email: research@collinear.ai
+- Queries the evaluation model for each question `
