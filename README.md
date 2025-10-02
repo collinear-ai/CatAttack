@@ -21,16 +21,28 @@ The main configuration file is `config.yaml`. Key sections:
 
 ```yaml
 models:
-  attacker:      # attack prompt generation (OpenAI format)
-  proxy_target:  # cheaper model used during optimisation loop
-  target_model:  # evaluation model for baseline & suffix runs
-  judge:         # judge prompt for correctness tests
+  attacker:      # Model that generates adversarial triggers
+  proxy_target:  # Weaker model used for optimisation loop
+  target_model:  # Evaluation model (baseline & suffix runs)
+  judge:         # Judge used for correctness checking
 
-dataset:         # suffix-generation dataset (attacker loop)
-test_dataset:    # evaluation dataset (suffix_evaluator)
-attack:          # optimisation settings (iterations, threads)
-output:          # results directory & HF push settings
-evaluation:      # evaluation runs (num_runs, num_problems, etc.)
+dataset:
+  name: "AI-MO/NuminaMath-CoT"
+  split: "test"
+  num_problems: 2
+
+test_dataset:
+  name: "collinear-ai/TEMP_catattack_codebase"
+  split: "train"
+  num_problems: 5
+
+attack:
+  max_iterations: 10
+  num_threads: 2
+
+output:
+  results_dir: "results"
+
 ```
 
 ---
@@ -45,6 +57,8 @@ evaluation:      # evaluation runs (num_runs, num_problems, etc.)
    - Uses `dataset` and the `proxy_target` model.
    - Saves results to `results/catattack_results_*.json`.
    - Prints discovered suffixes and success rate.
+3. **Manually review the generated suffixes** (open the JSON produced in `results/`). Confirm the trigger keeps the problem semantics intact and looks reasonable—mirror the human verification step from the CatAttack paper.
+4. Copy any suffixes you want to keep into `manual_suffixes.py`. Those entries will be used by the evaluation stage.
 
 If you want to curate suffixes manually, edit `manual_suffixes.py`. Any strings listed in `MANUAL_SUFFIXES` are evaluated by the next stage.
 
