@@ -1,0 +1,4 @@
+[console_scripts]
+catattack-cli = catattack.cli.main:main
+catattack-suffix-evaluator = catattack.cli.suffix_evaluator:main
+catattack-suffix-pipeline = catattack.cli.suffix_pipeline:main

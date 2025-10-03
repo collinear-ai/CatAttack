@@ -1,36 +1,30 @@
-#!/usr/bin/env python3
-"""
-CatAttack Suffix Generation Pipeline
-Simplified version focused only on generating adversarial suffixes
-"""
+"""CatAttack suffix generation CLI."""
 
-import asyncio
-import sys
 import time
-from pathlib import Path
-
-# Add src to path
-sys.path.append(str(Path(__file__).parent / "src"))
-
-from src.config import load_config
-from src.catattack import CatAttack, CatAttackResults
-from src.dataset import create_sample_dataset
 
 from dotenv import load_dotenv
 
-load_dotenv()  # reads .env and populates os.environ
+from .. import CatAttack
+from ..config import load_config
+from ..dataset import load_dataset, create_sample_dataset
 
 
-def main():
-    """Run the suffix generation pipeline"""
+def main(config_path: str = "config.yaml"):
+    """Run the suffix generation pipeline."""
+    load_dotenv()
+
     print("🐱 CatAttack: Suffix Generation Pipeline")
     print("=" * 50)
 
-    config = load_config("config.yaml")
-
-    problems = create_sample_dataset(config.dataset.num_problems)
-
-    print(f"Loaded {len(problems)} sample problems")
+    config = load_config(config_path)
+    
+    # Load dataset from config, or use hardcoded samples as fallback
+    if config.dataset.name or config.dataset.local_path:
+        problems = load_dataset(config.dataset)
+        print(f"Loaded {len(problems)} problems from {config.dataset.name or config.dataset.local_path}")
+    else:
+        problems = create_sample_dataset(config.dataset.num_problems or 10)
+        print(f"Loaded {len(problems)} sample problems (hardcoded fallback)")
     print(f"Using proxy target model: {config.models['proxy_target'].model}")
     print(f"Evaluating on target model: {config.models['target_model'].model}")
     print(f"Max iterations per problem: {config.attack.max_iterations}")
@@ -65,4 +59,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    config_file = sys.argv[1] if len(sys.argv) > 1 else "config.yaml"
+    main(config_file)

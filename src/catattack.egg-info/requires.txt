@@ -1,0 +1,11 @@
+jinja2
+datasets
+python-dotenv
+requests
+tqdm
+
+[dev]
+pytest
+black
+flake8
+mypy

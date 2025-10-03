@@ -146,9 +146,9 @@ class CatAttackConfig:
             if model_type not in self.models:
                 raise ValueError(f"Required model '{model_type}' not found in configuration")
         
-        # Validate dataset configuration
-        if not self.dataset.name and not self.dataset.local_path:
-            raise ValueError("Either dataset.name or dataset.local_path must be specified")
+        # Validate dataset configuration (optional - will use hardcoded samples as fallback)
+        # if not self.dataset.name and not self.dataset.local_path:
+        #     Warning: Will use hardcoded sample dataset as fallback
 
         if not self.test_dataset.name and not self.test_dataset.local_path:
             raise ValueError("test_dataset must specify either name or local_path")

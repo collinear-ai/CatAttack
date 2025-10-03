@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "catattack"
+version = "0.1.0"
+description = "CatAttack: Query-Agnostic Adversarial Triggers for Reasoning Models"
+authors = [
+    { name = "Meghana Rajeev" },
+    { name = "Rajkumar Ramamurthy" },
+    { name = "Prapti Trivedi" },
+    { name = "Vikas Yadav" },
+    { name = "Oluwanifemi Bamgbose" },
+    { name = "Sathwik Tejaswi Madhusudan" },
+    { name = "James Zou" },
+    { name = "Nazneen Rajani" }
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "jinja2",
+    "datasets",
+    "python-dotenv",
+    "requests",
+    "tqdm"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "flake8",
+    "mypy"
+]
+
+[project.urls]
+Homepage = "https://github.com/collinear-ai/CatAttack"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["catattack*"]
+
+[project.scripts]
+catattack-cli = "catattack.cli.main:main"
+catattack-suffix-pipeline = "catattack.cli.suffix_pipeline:main"
+catattack-suffix-evaluator = "catattack.cli.suffix_evaluator:main"
+

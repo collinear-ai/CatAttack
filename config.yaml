@@ -41,20 +41,21 @@ models:
     temperature: 0.0
 
 # Dataset configuration
+# Replace {{hf_dataset_name}} with your dataset, or leave empty to use hardcoded samples
 dataset:
   name: "AI-MO/NuminaMath-CoT"
   split: "test"
   num_problems: 2
-  problem_field: "question"
-  answer_field: "answer"
+  problem_field: "problem"
+  answer_field: "solution"
 
 # Test dataset configuration (for baseline evaluations)
 test_dataset:
-  name: "{{test_dataset_name}}"
+  name: "AI-MO/NuminaMath-CoT"
   split: "train"
   num_problems: 5
-  problem_field: "question"
-  answer_field: "answer"
+  problem_field: "problem"
+  answer_field: "solution"
 
 # Attack configuration
 attack:
@@ -70,7 +71,7 @@ output:
   results_dir: "results"
   save_triggers: true
   push_to_hub: false
-  hub_dataset_name: "{{modified_problems_hub_dataset}}"
+  hub_dataset_name: "collinear-ai/TEMP_catattack_codebase"
   hub_private: true
   include_failed_attacks: true
 
@@ -78,8 +79,8 @@ output:
 evaluation:
   model_key: "target_model"  # model used for both baseline and suffix evaluation
   num_runs: 6
-  num_problems: 10
+  num_problems: 1
   push_to_hub: false
-  hub_dataset_name: "{{evaluation_hub_dataset}}"
+  hub_dataset_name: "collinear-ai/TEMP_catattack_codebase"
   hub_private: true
   results_file: "evaluation_results.json"
