@@ -80,9 +80,6 @@ class EvaluationConfig:
     model_key: str = "target_model"
     num_runs: int = 3
     num_problems: Optional[int] = None
-    push_to_hub: bool = False
-    hub_dataset_name: Optional[str] = None
-    hub_private: bool = True
     results_file: str = "evaluation_results.json"
 
 
@@ -159,10 +156,6 @@ class CatAttackConfig:
         baseline_dataset_config = self.test_dataset or self.dataset
         if baseline_dataset_config.name is None and baseline_dataset_config.local_path is None:
             raise ValueError("Baseline test dataset requires either name or local_path")
-
-        # If evaluation push is requested ensure dataset name is provided
-        if self.evaluation.push_to_hub and not self.evaluation.hub_dataset_name:
-            raise ValueError("evaluation.hub_dataset_name must be provided when evaluation.push_to_hub is True")
 
 
 def load_config(config_path: str = "config.yaml") -> CatAttackConfig:

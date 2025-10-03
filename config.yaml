@@ -80,7 +80,4 @@ evaluation:
   model_key: "target_model"  # model used for both baseline and suffix evaluation
   num_runs: 6
   num_problems: 1
-  push_to_hub: false
-  hub_dataset_name: "collinear-ai/TEMP_catattack_codebase"
-  hub_private: true
   results_file: "evaluation_results.json"
