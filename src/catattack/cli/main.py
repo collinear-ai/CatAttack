@@ -82,7 +82,7 @@ async def run_main(args=None):
         catattack = CatAttack(config)
 
         logger.info("Running CatAttack...")
-        results = await catattack.run_attack(problems)
+        results = catattack.run_attack(problems)
 
         output_path = parsed_args.output
         if not output_path:

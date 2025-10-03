@@ -71,7 +71,7 @@ output:
   results_dir: "results"
   save_triggers: true
   push_to_hub: false
-  hub_dataset_name: "collinear-ai/TEMP_catattack_codebase"
+  hub_dataset_name: "your-org/catattack-problems"  # Replace with your HuggingFace dataset
   hub_private: true
   include_failed_attacks: true
 

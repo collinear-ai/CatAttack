@@ -20,6 +20,15 @@ pip install -e .
 
 ### 2. Set API Keys
 
+Copy `env.example` to `.env` and fill in your keys:
+
+```bash
+cp env.example .env
+# Edit .env with your API keys
+```
+
+Or export them directly:
+
 ```bash
 export OPENAI_API_KEY="your-key"
 export FIREWORKS_API_KEY="your-key"

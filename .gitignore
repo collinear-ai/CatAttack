@@ -11,8 +11,11 @@ Thumbs.db
 # Python
 __pycache__/
 *.pyc
+*.egg-info/
 .venv/
 venv/
+build/
+dist/
 
 # Node (if any)
 node_modules/
