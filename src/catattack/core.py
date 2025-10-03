@@ -131,11 +131,17 @@ class CatAttack:
         num_threads = max(1, getattr(self.config.attack, "num_threads", 1))
 
         with ThreadPoolExecutor(max_workers=num_threads) as executor:
-            futures = [executor.submit(self._attack_single_problem_sync, problem) for problem in problems]
+            # Submit all tasks and track which future corresponds to which problem
+            future_to_idx = {executor.submit(self._attack_single_problem_sync, problem): idx 
+                           for idx, problem in enumerate(problems)}
+            
             iterator = _progress(range(total_problems), description="Attacking problems", total=total_problems)
-
-            for idx in iterator:
-                future = futures[idx]
+            
+            # Process results as they complete (not in submission order)
+            from concurrent.futures import as_completed
+            for future in as_completed(future_to_idx.keys()):
+                idx = future_to_idx[future]
+                iterator.update(1)  # Update progress bar
                 try:
                     result = future.result()
                     if result:
@@ -238,7 +244,12 @@ class CatAttack:
             # Attack is successful if proxy gets it wrong
             if not proxy_is_correct:
                 result.attack_successful = True
-                result.extracted_trigger = self.extract_trigger(original_question, adversarial_question)
+                trigger = self.extract_trigger(original_question, adversarial_question)
+                if trigger:  # Only mark as successful if we extracted a valid trigger
+                    result.extracted_trigger = trigger
+                else:
+                    self.logger.warning(f"Attack succeeded but could not extract valid trigger. "
+                                      f"Adversarial question may have modified the original question instead of adding suffix.")
                 break  # Stop iterating once we find a successful attack
         
         return result
@@ -275,15 +286,38 @@ class CatAttack:
             response = await self.attacker_client.generate(prompt, temperature=0.7)
             
             # Try to parse JSON response
-            response.content = response.content.replace("```json", "").replace("```", "")
+            content = response.content.replace("```json", "").replace("```", "").strip()
+            
             try:
                 import json
-                result = json.loads(response.content)
-                return result.get("final_question", result.get("question", ""))
-            except json.JSONDecodeError:
-                # Fallback: return the raw response
-                self.logger.warning("Could not parse JSON from attacker response")
-                return response.content.strip()
+                import re
+                
+                # Try direct parsing first
+                try:
+                    result = json.loads(content)
+                    final_q = result.get("final_question", result.get("question", ""))
+                    if final_q:
+                        return final_q
+                except json.JSONDecodeError:
+                    pass
+                
+                # Try to extract just the final_question or question value using regex
+                # Use DOTALL to handle multi-line strings, and .*? for non-greedy matching
+                final_q_match = re.search(r'"final_question"\s*:\s*"(.*?)"(?:\s*[,}])', content, re.DOTALL)
+                if final_q_match:
+                    return final_q_match.group(1).strip()
+                
+                q_match = re.search(r'"question"\s*:\s*"(.*?)"(?:\s*[,}])', content, re.DOTALL)
+                if q_match:
+                    return q_match.group(1).strip()
+                
+                # Only warn if ALL parsing methods failed
+                self.logger.warning(f"Could not extract question from attacker response. Raw (first 200 chars): {content[:200]}")
+                return content.strip()
+                    
+            except Exception as e:
+                self.logger.warning(f"Error parsing attacker response: {e}")
+                return content.strip()
                 
         except Exception as e:
             self.logger.error(f"Error generating adversarial question: {str(e)}")
@@ -307,28 +341,48 @@ class CatAttack:
         
         try:
             response = await self.judge_client.generate(prompt, temperature=0.0)
-            response = response.content
-            response = response.replace("```json", "").replace("```", "")
+            content = response.content.replace("```json", "").replace("```", "").strip()
             
             # Try to parse JSON response
             try:
-                result = json.loads(response)
-                # The judge returns 1 for correct, 0 for incorrect
-                output = result.get("output", 1)
-                if isinstance(output, str):
-                    output = int(output.strip().split()[0])  # Extract number from string
-                return output == 1
-            except (json.JSONDecodeError, ValueError) as e:
-                self.logger.warning(f"Could not parse judge response as JSON: {e}")
-                # Fallback: look for output indicators in text
-                content_lower = response.lower()
-                if '"output": 0' in content_lower or '"output":0' in content_lower:
+                import re
+                
+                # Try direct parsing first
+                try:
+                    result = json.loads(content)
+                    output = result.get("output", 1)
+                    if isinstance(output, str):
+                        output = int(output.strip().split()[0])
+                    return output == 1
+                except json.JSONDecodeError:
+                    pass
+                
+                # Try to extract JSON object with regex (more permissive)
+                json_match = re.search(r'\{[^{}]*"output"[^{}]*\}', content, re.DOTALL)
+                if json_match:
+                    try:
+                        result = json.loads(json_match.group(0))
+                        output = result.get("output", 1)
+                        if isinstance(output, str):
+                            output = int(output.strip().split()[0])
+                        return output == 1
+                    except:
+                        pass
+                
+                # Fallback: look for output indicators in text (silently, as this often works)
+                content_lower = content.lower()
+                if '"output": 0' in content_lower or '"output":0' in content_lower or "'output': 0" in content_lower:
                     return False
-                elif '"output": 1' in content_lower or '"output":1' in content_lower:
+                elif '"output": 1' in content_lower or '"output":1' in content_lower or "'output': 1" in content_lower:
                     return True
                 else:
-                    # Default to correct if unclear
-                    return True
+                    # Only warn if we truly couldn't extract anything
+                    self.logger.warning(f"Could not determine judge output. Raw (first 200 chars): {content[:200]}")
+                    return True  # Default to correct if unclear
+                        
+            except (ValueError, AttributeError) as e:
+                self.logger.warning(f"Error parsing judge response: {e}")
+                return True  # Default to correct on error
                     
         except Exception as e:
             self.logger.error(f"Error judging answer: {str(e)}")

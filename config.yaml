@@ -45,7 +45,7 @@ models:
 dataset:
   name: "AI-MO/NuminaMath-CoT"
   split: "test"
-  num_problems: 2
+  num_problems: 5
   problem_field: "problem"
   answer_field: "solution"
 
@@ -60,7 +60,7 @@ test_dataset:
 # Attack configuration
 attack:
   max_iterations: 10
-  num_threads: 2
+  num_threads: 5
 
 # Logging and output
 logging:

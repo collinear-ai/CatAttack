@@ -25,9 +25,11 @@ def main(config_path: str = "config.yaml"):
     else:
         problems = create_sample_dataset(config.dataset.num_problems or 10)
         print(f"Loaded {len(problems)} sample problems (hardcoded fallback)")
-    print(f"Using proxy target model: {config.models['proxy_target'].model}")
-    print(f"Evaluating on target model: {config.models['target_model'].model}")
+    print(f"Attacker model: {config.models['attacker'].model}")
+    print(f"Proxy target model (for suffix generation): {config.models['proxy_target'].model}")
+    print(f"Judge model: {config.models['judge'].model}")
     print(f"Max iterations per problem: {config.attack.max_iterations}")
+    print(f"Parallel threads: {config.attack.num_threads}")
     print()
 
     catattack = CatAttack(config)
@@ -36,7 +38,9 @@ def main(config_path: str = "config.yaml"):
 
     results_summary = catattack.run_attack(problems)
 
-    successful_suffixes = [r.extracted_trigger for r in results_summary.attack_results if r.attack_successful]
+    # Filter out empty triggers
+    successful_suffixes = [r.extracted_trigger for r in results_summary.attack_results 
+                          if r.attack_successful and r.extracted_trigger]
 
     saved_path = catattack.save_results(results_summary)
     print(f"📁 Saved detailed results to {saved_path}")
